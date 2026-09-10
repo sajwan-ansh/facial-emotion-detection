@@ -1,41 +1,64 @@
 # Facial Emotion Detection
 
-A practical FER-2013 facial emotion recognition project using TensorFlow/Keras and OpenCV. The project is designed as a strong, reproducible baseline for real-time webcam inference rather than a claim of perfect emotion understanding.
+A modular facial emotion recognition system built with TensorFlow/Keras and OpenCV, trained around the FER-2013 benchmark and designed for real-time webcam inference.
 
-## What changed in v2
+> **Important:** This project predicts visual expression patterns from faces. It does not reliably determine a person's internal emotional state, intent, or mental health.
 
-- **More regularized CNN:** global average pooling reduces the large fully-connected parameter bottleneck.
-- **Label smoothing:** makes training less overconfident on noisy FER-2013 labels.
-- **Class-balanced training:** automatically computes class weights from the training split, helping underrepresented emotions such as Disgust.
-- **Stronger augmentation:** adds small rotations, shifts, zoom, shear, reflection padding and horizontal flips.
-- **Better preprocessing:** histogram equalization is applied before live inference to reduce sensitivity to lighting.
-- **Temporal smoothing:** live predictions use a short probability-history smoother, reducing frame-to-frame flicker.
-- **Uncertain state:** low-confidence predictions are shown as `Uncertain` instead of presenting a weak softmax maximum as a fact.
-- **Stronger evaluation:** reports accuracy, macro F1, weighted F1, balanced accuracy, per-class precision/recall/F1 and a normalized confusion matrix.
-- **Modular inference:** detector, preprocessing, model inference and smoothing are separated so each component can be replaced independently.
+## Highlights
+
+- Regularized CNN with global average pooling
+- Label smoothing for noisy FER-2013 labels
+- Class-balanced training for uneven emotion frequencies
+- Stronger image augmentation
+- Lighting normalization during live detection
+- Temporal probability smoothing to reduce flicker
+- Explicit `Uncertain` output for low-confidence predictions
+- Evaluation with accuracy, macro F1, weighted F1 and balanced accuracy
+- Normalized confusion matrix generation
+- Modular detector → preprocessing → inference → smoothing pipeline
+
+## Architecture
+
+```text
+Webcam
+  ↓
+Face detection
+  ↓
+Grayscale + lighting normalization
+  ↓
+48 × 48 preprocessing
+  ↓
+CNN emotion classifier
+  ↓
+Emotion probabilities
+  ↓
+Confidence threshold
+  ↓
+Temporal smoothing
+  ↓
+Stable emotion / Uncertain
+```
 
 ## Project structure
 
 ```text
 facial-emotion-detection/
 ├── data/
-│   ├── .gitkeep
-│   └── fer2013.csv                 # ignored by Git
+│   └── .gitkeep                  # FER-2013 CSV is not committed
 ├── models/
-│   ├── .gitkeep
-│   └── emotion_model.keras         # ignored by Git
+│   └── .gitkeep                  # trained weights are not committed
 ├── outputs/
-│   └── .gitkeep
+│   └── .gitkeep                  # generated evaluation artifacts
 ├── src/
-│   ├── config.py
-│   ├── evaluate.py
-│   ├── face_detector.py
-│   ├── inference.py
-│   ├── live_detection.py
-│   ├── model.py
-│   ├── smoothing.py
-│   ├── train.py
-│   └── utils.py
+│   ├── config.py                 # paths and shared configuration
+│   ├── evaluate.py               # test-set metrics and confusion matrix
+│   ├── face_detector.py          # face detection
+│   ├── inference.py              # model loading and prediction
+│   ├── live_detection.py         # webcam application
+│   ├── model.py                  # CNN architecture
+│   ├── smoothing.py              # temporal prediction smoothing
+│   ├── train.py                  # training pipeline
+│   └── utils.py                  # dataset and preprocessing helpers
 ├── requirements.txt
 └── README.md
 ```
@@ -44,23 +67,43 @@ facial-emotion-detection/
 
 ```bash
 python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-# source .venv/bin/activate
+```
 
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-Download FER-2013 as `data/fer2013.csv`.
+Place the FER-2013 CSV at:
+
+```text
+data/fer2013.csv
+```
+
+The dataset is intentionally excluded from Git.
 
 ## Train
+
+Full training:
 
 ```bash
 python src/train.py
 ```
 
-For a quick smoke test:
+Quick smoke test:
 
 ```bash
 python src/train.py --sample_size 2000 --epochs 2
@@ -68,21 +111,38 @@ python src/train.py --sample_size 2000 --epochs 2
 
 The best checkpoint is written to `models/emotion_model.keras`.
 
+### Training improvements
+
+The training pipeline uses class-balanced weights, label smoothing, early stopping, learning-rate reduction, and stronger geometric augmentation. These choices are intended to improve robustness rather than simply maximize training accuracy.
+
 ## Evaluate
 
 ```bash
 python src/evaluate.py
 ```
 
-The evaluation uses the FER-2013 `PrivateTest` split and prints class-level metrics plus balanced accuracy and macro F1. A normalized confusion matrix is saved to `outputs/confusion_matrix_normalized.png`.
+Evaluation uses FER-2013's `PrivateTest` split and reports:
 
-## Live detection
+- accuracy
+- macro F1
+- weighted F1
+- balanced accuracy
+- per-emotion precision, recall and F1
+- normalized confusion matrix
+
+The confusion matrix is saved to:
+
+```text
+outputs/confusion_matrix_normalized.png
+```
+
+## Live webcam detection
 
 ```bash
 python src/live_detection.py
 ```
 
-Useful options:
+Optional controls:
 
 ```bash
 python src/live_detection.py --min_confidence 0.50 --smoothing_window 7
@@ -90,16 +150,22 @@ python src/live_detection.py --min_confidence 0.50 --smoothing_window 7
 
 Press **Q** to quit.
 
-### Detection limitations
+The live pipeline uses a lightweight Haar cascade detector, histogram equalization, confidence filtering and temporal probability smoothing. Haar detection remains the main practical limitation for difficult poses, occlusion and poor lighting.
 
-The current detector is still OpenCV's Haar cascade because it is lightweight and requires no extra model download. It works best with reasonably front-facing, visible faces. A future accuracy-focused version should benchmark a modern detector (for example, an OpenCV DNN detector) and face alignment before comparing emotion-model performance.
+## Model limitations
 
-## Dataset and model notes
+FER-2013 contains noisy, crowd-sourced expression labels and seven broad expression categories. Real-world performance can vary substantially with lighting, camera quality, face angle, occlusion, demographics and dataset shift.
 
-FER-2013 contains noisy, crowd-sourced facial-expression labels. Emotion recognition is probabilistic and should not be interpreted as reading a person's true internal emotional state.
+A future accuracy-focused version should benchmark a modern face detector, face alignment, stronger CNN/transfer-learning backbones and calibration on a held-out validation set.
 
-The trained model file is intentionally ignored by Git. For distribution, use Git LFS or a GitHub Release/model registry rather than storing large binary checkpoints in normal Git history.
+## Reproducibility
+
+The repository does **not** commit the FER-2013 dataset or trained model weights. This keeps the Git history lightweight and avoids redistributing dataset contents without checking their terms.
+
+For a portfolio/demo release, a trained checkpoint can be distributed separately through GitHub Releases, Git LFS, or another model registry after checking the relevant dataset/model terms.
 
 ## License
 
 MIT License. See `LICENSE`.
+
+The MIT license applies to the code in this repository. FER-2013 is a separate dataset with its own terms.
