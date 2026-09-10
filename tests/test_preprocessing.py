@@ -1,8 +1,13 @@
+import sys
 import unittest
+from pathlib import Path
 
 import numpy as np
 
-from src.utils import preprocess_face
+SRC_DIR = Path(__file__).resolve().parents[1] / "src"
+sys.path.insert(0, str(SRC_DIR))
+
+from utils import preprocess_face
 
 
 class PreprocessingTests(unittest.TestCase):
