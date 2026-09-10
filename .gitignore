@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+build/
+dist/
+
+# FER-2013 dataset and trained weights are intentionally kept out of Git.
+data/*.csv
+data/*.zip
+models/*.h5
+models/*.keras
+outputs/*.png
+
+!data/.gitkeep
+!models/.gitkeep
+!outputs/.gitkeep
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
